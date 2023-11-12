@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic Tac Toe</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            text-align: center;
+            background-color: #000;
+            margin: 0;
+            padding: 0;
+            color: #fff;
+        }
+
+        h1 {
+            color: #2196F3;
+        }
+
+        table {
+            border-collapse: collapse;
+            margin: 20px auto;
+            background-color: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border: 2px solid #fff;
+        }
+
+        td {
+            width: 80px;
+            height: 80px;
+            font-size: 36px;
+            cursor: pointer;
+            transition: background-color 0.3s ease-in-out, color 0.3s ease-in-out;
+            text-align: center;
+            border: 2px solid #fff;
+        }
+
+        td:hover {
+            background-color: #666;
+        }
+
+        td:empty:hover {
+            background-color: #888;
+        }
+
+        #board {
+            display: grid;
+            grid-template-columns: repeat(var(--board-size), 1fr);
+            gap: 4px;
+            justify-content: center;
+        }
+
+        select {
+            font-size: 16px;
+            margin: 10px;
+            padding: 5px;
+            color: #000;
+        }
+
+        label {
+            color: #2196F3;
+            margin-right: 5px;
+        }
+
+        #scoreboard {
+            margin-top: 20px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+        }
+
+        .score-box {
+            width: 100px;
+            padding: 10px;
+            background-color: #2196F3;
+            border-radius: 10px;
+            text-align: center;
+            margin: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease-in-out;
+        }
+
+        .score-box:hover {
+            background-color: #1565C0;
+        }
+
+        #prompt {
+            font-size: 18px;
+            margin-top: 20px;
+            color: #fff;
+        }
+
+        /* Colors for X and O */
+        #board [data-row="0"] [data-col="0"],
+        #board [data-row="0"] [data-col="1"],
+        #board [data-row="0"] [data-col="2"],
+        #board [data-row="1"] [data-col="0"],
+        #board [data-row="1"] [data-col="2"],
+        #board [data-row="2"] [data-col="0"],
+        #board [data-row="2"] [data-col="1"],
+        #board [data-row="2"] [data-col="2"] {
+            color: blue;
+        }
+
+        #board [data-row="0"] [data-col="1"],
+        #board [data-row="1"] [data-col="0"],
+        #board [data-row="1"] [data-col="2"],
+        #board [data-row="2"] [data-col="1"] {
+            color: orange;
+        }
+
+        #loadingScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            font-size: 24px;
+            display: none; /* Initially hidden */
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Tic Tac Toe</h1>
+    <label for="boardSize" style="color: #2196F3;">Select Board Size:</label>
+    <select id="boardSize">
+        <option value="3">3x3</option>
+        <!-- Add more options if desired -->
+    </select>
+    <label for="difficulty" style="color: #2196F3;">Select Difficulty:</label>
+    <select id="difficulty">
+        <option value="easy">Easy</option>
+        <option value="hard">Hard</option>
+    </select>
+    <table id="board"></table>
+    <div id="scoreboard">
+        <div class="score-box" id="playerXScore">Player X Wins: 0</div>
+        <div class="score-box" id="playerOScore">Player O Wins: 0</div>
+        <div class="score-box" id="drawScore">Draws: 0</div>
+    </div>
+    <div id="prompt"></div>
+    <div id="loadingScreen">Thinking...</div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const board = document.getElementById('board');
+            const boardSizeSelect = document.getElementById('boardSize');
+            const difficultySelect = document.getElementById('difficulty');
+            const playerXScoreBox = document.getElementById('playerXScore');
+            const playerOScoreBox = document.getElementById('playerOScore');
+            const drawScoreBox = document.getElementById('drawScore');
+            const promptDiv = document.getElementById('prompt');
+            const loadingScreen = document.getElementById('loadingScreen');
+
+            let currentPlayer;
+            let boardSize = parseInt(boardSizeSelect.value, 10);
+            let playerXScore = 0;
+            let playerOScore = 0;
+            let drawScore = 0;
+
+            function createCell(row, col) {
+                const cell = document.createElement('td');
+                cell.dataset.row = row;
+                cell.dataset.col = col;
+                cell.addEventListener('click', () => handleCellClick(cell));
+                return cell;
+            }
+
+            function createRow(row) {
+                const tr = document.createElement('tr');
+                for (let col = 0; col < boardSize; col++) {
+                    tr.appendChild(createCell(row, col));
+                }
+                return tr;
+            }
+
+            function initializeBoard() {
+                board.innerHTML = '';
+                for (let row = 0; row < boardSize; row++) {
+                    board.appendChild(createRow(row));
+                }
+            }
+
+            function handleCellClick(cell) {
+                if (!cell.textContent && currentPlayer === 'X') {
+                    cell.textContent = 'X';
+
+                    if (checkWin()) {
+                        setTimeout(() => {
+                            alert('Player X wins!');
+                            updateScores('X');
+                            resetBoard();
+                        }, 100);
+                    } else if (checkDraw()) {
+                        setTimeout(() => {
+                            alert("It's a draw!");
+                            updateScores('draw');
+                            resetBoard();
+                        }, 100);
+                    } else {
+                        currentPlayer = 'O';
+                        updatePrompt();
+
+                        if (difficultySelect.value === 'hard') {
+                            showLoadingScreen();
+                            setTimeout(() => makeComputerMove(), 100); // Delay for loading screen
+                        } else {
+                            setTimeout(() => makeComputerMove(), 500); // Delay for easy mode
+                        }
+                    }
+                }
+            }
+
+            function makeComputerMove() {
+                if (difficultySelect.value === 'easy') {
+                    makeRandomMove();
+                } else {
+                    makeMinimaxMove();
+                }
+            }
+
+            function makeRandomMove() {
+                const cells = board.getElementsByTagName('td');
+                const emptyCells = Array.from(cells).filter(cell => !cell.textContent);
+                const randomCell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+                randomCell.textContent = 'O';
+
+                if (checkWin()) {
+                    setTimeout(() => {
+                        alert('Player O wins!');
+                        updateScores('O');
+                        resetBoard();
+                    }, 100);
+                } else if (checkDraw()) {
+                    setTimeout(() => {
+                        alert("It's a draw!");
+                        updateScores('draw');
+                        resetBoard();
+                    }, 100);
+                } else {
+                    currentPlayer = 'X';
+                    updatePrompt();
+                }
+            }
+
+            function makeMinimaxMove() {
+                const cells = board.getElementsByTagName('td');
+                let bestScore = -Infinity;
+                let bestMove;
+
+                for (const cell of cells) {
+                    if (!cell.textContent) {
+                        cell.textContent = 'O';
+                        const score = minimax(cells, 0, false);
+                        cell.textContent = '';
+
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestMove = cell;
+                        }
+                    }
+                }
+
+                bestMove.textContent = 'O';
+
+                if (checkWin()) {
+                    setTimeout(() => {
+                        alert('Player O wins!');
+                        updateScores('O');
+                        resetBoard();
+                    }, 100);
+                } else if (checkDraw()) {
+                    setTimeout(() => {
+                        alert("It's a draw!");
+                        updateScores('draw');
+                        resetBoard();
+                    }, 100);
+                } else {
+                    currentPlayer = 'X';
+                    updatePrompt();
+                    hideLoadingScreen(); // Hide loading screen after computer move in hard mode
+                }
+            }
+
+            function minimax(board, depth, isMaximizing) {
+                if (checkWin()) {
+                    return isMaximizing ? -1 : 1;
+                } else if (checkDraw()) {
+                    return 0;
+                }
+
+                if (isMaximizing) {
+                    let bestScore = -Infinity;
+                    for (const cell of board) {
+                        if (!cell.textContent) {
+                            cell.textContent = 'O';
+                            const score = minimax(board, depth + 1, false);
+                            cell.textContent = '';
+                            bestScore = Math.max(score, bestScore);
+                        }
+                    }
+                    return bestScore;
+                } else {
+                    let bestScore = Infinity;
+                    for (const cell of board) {
+                        if (!cell.textContent) {
+                            cell.textContent = 'X';
+                            const score = minimax(board, depth + 1, true);
+                            cell.textContent = '';
+                            bestScore = Math.min(score, bestScore);
+                        }
+                    }
+                    return bestScore;
+                }
+            }
+
+            function checkWin() {
+                const cells = board.getElementsByTagName('td');
+
+                // Check rows
+                for (let i = 0; i < cells.length; i += boardSize) {
+                    if (
+                        cells[i].textContent &&
+                        cells[i].textContent === cells[i + 1].textContent &&
+                        cells[i].textContent === cells[i + 2].textContent
+                    ) {
+                        return true;
+                    }
+                }
+
+                // Check columns
+                for (let i = 0; i < boardSize; i++) {
+                    if (
+                        cells[i].textContent &&
+                        cells[i].textContent === cells[i + boardSize].textContent &&
+                        cells[i].textContent === cells[i + 2 * boardSize].textContent
+                    ) {
+                        return true;
+                    }
+                }
+
+                // Check diagonals
+                if (
+                    cells[0].textContent &&
+                    cells[0].textContent === cells[4].textContent &&
+                    cells[0].textContent === cells[8].textContent
+                ) {
+                    return true;
+                }
+
+                if (
+                    cells[2].textContent &&
+                    cells[2].textContent === cells[4].textContent &&
+                    cells[2].textContent === cells[6].textContent
+                ) {
+                    return true;
+                }
+
+                return false;
+            }
+
+            function checkDraw() {
+                const cells = board.getElementsByTagName('td');
+                return Array.from(cells).every(cell => cell.textContent !== '');
+            }
+
+            function resetBoard() {
+                Array.from(board.getElementsByTagName('td')).forEach(cell => (cell.textContent = ''));
+                updateScores(); // Update scores after each game
+                currentPlayer = 'X';
+                updatePrompt();
+                hideLoadingScreen(); // Hide loading screen on board reset
+            }
+
+            function updateScores(winner) {
+                if (winner === 'X') {
+                    playerXScore++;
+                } else if (winner === 'O') {
+                    playerOScore++;
+                } else if (winner === 'draw') {
+                    drawScore++;
+                }
+
+                playerXScoreBox.textContent = `Player X Wins: ${playerXScore}`;
+                playerOScoreBox.textContent = `Player O Wins: ${playerOScore}`;
+                drawScoreBox.textContent = `Draws: ${drawScore}`;
+            }
+
+            function updatePrompt() {
+                promptDiv.textContent = currentPlayer === 'X' ? 'Your turn (X)' : "Computer's turn (O)";
+            }
+
+            function showLoadingScreen() {
+                loadingScreen.style.display = 'flex';
+            }
+
+            function hideLoadingScreen() {
+                loadingScreen.style.display = 'none';
+            }
+
+            function resetGame() {
+                playerXScore = 0
+                playerOScore = 0;
+                drawScore = 0;
+                updateScores(); // Reset scores on game reset
+                resetBoard();
+            }
+
+            function updateBoardSize() {
+                boardSize = parseInt(boardSizeSelect.value, 10);
+                initializeBoard();
+                resetGame();
+            }
+
+            // Event listeners
+            boardSizeSelect.addEventListener('change', updateBoardSize);
+            difficultySelect.addEventListener('change', resetGame);
+
+            // Initial setup
+            initializeBoard();
+            resetGame(); // This will also update the board size based on the initial selection
+
+        });
+    </script>
+</body>
+
+</html>
